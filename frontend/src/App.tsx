@@ -1,10 +1,11 @@
+import NewAnalysis from './pages/NewAnalysis'
 import { Route, Routes } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import Overview from './pages/Overview'
 import PlaceholderPage from './pages/PlaceholderPage'
 
 const placeholders = [
-  { path: 'new', title: 'New analysis', phase: 'Oct 11' },
+  
   { path: 'files', title: 'File risk', phase: 'Oct 12' },
   { path: 'debt', title: 'Technical debt', phase: 'Oct 12' },
   { path: 'agents', title: 'Agent pipeline', phase: 'Oct 13' },
@@ -21,6 +22,7 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Overview />} />
+        <Route path="new" element={<NewAnalysis />} />
         {placeholders.map((p) => (
           <Route key={p.path} path={p.path} element={<PlaceholderPage title={p.title} phase={p.phase} />} />
         ))}
