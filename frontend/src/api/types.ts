@@ -38,3 +38,27 @@ export interface AnalysisSummary {
   avg_bug_risk: Score | null
   avg_debt: Score | null
 }
+export interface AgentProgress {
+  agent: string
+  status: AgentStatus
+  started_at: string | null
+  finished_at: string | null
+  error: string | null
+}
+
+export interface AnalysisStatusResponse {
+  analysis_id: string
+  status: AnalysisStatus
+  data_source: DataSource
+  generated_at: string
+  repo_url: string
+  progress: number | null // 0..1, null if unknown
+  stage: string | null
+  agents: AgentProgress[]
+  error: string | null
+}
+
+export interface CreateAnalysisResponse {
+  analysis_id: string
+  status: AnalysisStatus
+}
