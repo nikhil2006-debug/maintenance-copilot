@@ -1,4 +1,4 @@
-import type { AnalysisSummary } from '../api/types'
+import type { AgentStatus, AnalysisStatusResponse, AnalysisSummary } from '../api/types'
 
 export const mockSummary: AnalysisSummary = {
   analysis_id: 'demo',
@@ -24,4 +24,41 @@ export const mockSummary: AnalysisSummary = {
     value: 0.22, method: 'heuristic', validated: false,
     evaluation_ref: null, confidence: null, confidence_kind: null,
   },
+}
+const MOCK_AGENTS = [
+  'bug_analysis',
+  'bug_evolution',
+  'technical_debt',
+  'recommendation',
+  'orchestrator',
+]
+const STEP_MS = 1600
+
+let mockStartedAt = 0
+
+export function startMockRun() {
+  mockStartedAt = Date.now()
+}
+
+export function getMockStatus(): AnalysisStatusResponse {
+  const elapsed = mockStartedAt === 0 ? Infinity : Date.now() - mockStartedAt
+  const total = MOCK_AGENTS.length * STEP_MS
+  const done = elapsed >= total
+  const now = new Date().toISOString()
+  return {
+    analysis_id: 'demo',
+    status: done ? 'completed' : 'running',
+    data_source: 'mock',
+    generated_at: now,
+    repo_url: 'https://github.com/sample/demo-repo',
+    progress: done ? 1 : elapsed / total,
+    stage: done ? 'Finished' : 'Simulated run',
+    agents: MOCK_AGENTS.map((agent, i) => {
+      let status: AgentStatus = 'pending'
+      if (elapsed >= (i + 1) * STEP_MS) status = 'completed'
+      else if (elapsed >= i * STEP_MS) status = 'running'
+      return { agent, status, started_at: null, finished_at: null, error: null }
+    }),
+    error: null,
+  }
 }
