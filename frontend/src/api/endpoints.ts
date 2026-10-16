@@ -1,7 +1,12 @@
 import { USE_MOCKS } from '../lib/config'
 import { request } from './client'
-import type { AnalysisStatusResponse, AnalysisSummary, CreateAnalysisResponse } from './types'
 import { getMockStatus, mockSummary, startMockRun } from '../mocks/fixtures'
+import type {
+  AnalysisStatusResponse,
+  AnalysisSummary,
+  CreateAnalysisResponse,
+  FilesResponse,
+} from './types'
 
 const mockDelay = <T,>(data: T, ms = 400) =>
   new Promise<T>((resolve) => setTimeout(() => resolve(data), ms))
@@ -25,4 +30,33 @@ export function getAnalysisStatus(id: string): Promise<AnalysisStatusResponse> {
 export function getAnalysisSummary(id: string): Promise<AnalysisSummary> {
   if (USE_MOCKS) return mockDelay(mockSummary)
   return request<AnalysisSummary>(`/api/analyses/${id}/summary`)
+}
+
+export function getFiles(id: string): Promise<FilesResponse> {
+  if (USE_MOCKS) {
+    return mockDelay({
+      analysis_id: 'demo',
+      data_source: 'mock' as const,
+      total: 1,
+      items: [
+        {
+          path: 'SAMPLE/not-real-file.py',
+          commits: 0,
+          churn: 0,
+          contributors: 0,
+          bugfix_commits: 0,
+          last_modified: null,
+          bug_risk: {
+            value: null,
+            method: 'heuristic' as const,
+            validated: false,
+            evaluation_ref: null,
+            confidence: null,
+            confidence_kind: null,
+          },
+        },
+      ],
+    })
+  }
+  return request<FilesResponse>(`/api/analyses/${id}/files`)
 }

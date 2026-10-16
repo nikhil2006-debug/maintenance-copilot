@@ -62,3 +62,19 @@ export interface CreateAnalysisResponse {
   analysis_id: string
   status: AnalysisStatus
 }
+export interface FileItem {
+  path: string
+  commits: number
+  churn: number
+  contributors: number
+  bugfix_commits: number
+  last_modified: string | null
+  bug_risk: Score
+}
+
+export interface FilesResponse {
+  analysis_id: string
+  data_source: DataSource
+  total: number
+  items: FileItem[]
+}
