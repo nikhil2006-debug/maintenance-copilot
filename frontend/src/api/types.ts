@@ -78,3 +78,42 @@ export interface FilesResponse {
   total: number
   items: FileItem[]
 }
+
+export interface AgentFinding {
+  file: string
+  summary: string
+  evidence: Record<string, string | number | null>
+}
+
+export interface Recommendation {
+  file: string
+  rank: number
+  risk: number | null
+  actions: string[]
+  flagged_by: string[]
+}
+
+export interface AgentReport {
+  agent: string
+  status: AgentStatus
+  method: string
+  findings: unknown[]
+  note?: string
+  error?: string
+}
+
+export interface Conflict {
+  file: string
+  agents: string[]
+  description: string
+  resolution: string
+}
+
+export interface AgentsResponse {
+  analysis_id: string
+  data_source: DataSource
+  generated_at: string
+  agents: AgentReport[]
+  orchestrator: { conflicts: Conflict[]; agent_errors: { agent: string; message: string }[] }
+  recommendations: Recommendation[]
+}

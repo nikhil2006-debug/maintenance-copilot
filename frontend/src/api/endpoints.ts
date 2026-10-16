@@ -2,6 +2,7 @@ import { USE_MOCKS } from '../lib/config'
 import { request } from './client'
 import { getMockStatus, mockSummary, startMockRun } from '../mocks/fixtures'
 import type {
+  AgentsResponse,
   AnalysisStatusResponse,
   AnalysisSummary,
   CreateAnalysisResponse,
@@ -59,4 +60,18 @@ export function getFiles(id: string): Promise<FilesResponse> {
     })
   }
   return request<FilesResponse>(`/api/analyses/${id}/files`)
+}
+
+export function getAgents(id: string): Promise<AgentsResponse> {
+  if (USE_MOCKS) {
+    return mockDelay({
+      analysis_id: 'demo',
+      data_source: 'mock' as const,
+      generated_at: new Date().toISOString(),
+      agents: [],
+      orchestrator: { conflicts: [], agent_errors: [] },
+      recommendations: [],
+    })
+  }
+  return request<AgentsResponse>(`/api/analyses/${id}/agents`)
 }
