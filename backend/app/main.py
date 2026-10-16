@@ -1,6 +1,5 @@
 import re
 from datetime import datetime, timezone
-from .scoring import LABEL_METHOD, PREDICTION_TARGET, score_files
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,9 +7,11 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from . import models
+from .agents import run_agents
 from .config import CORS_ORIGINS
 from .db import Base, engine, get_db
 from .jobs import run_analysis
+from .scoring import LABEL_METHOD, PREDICTION_TARGET, score_files
 
 Base.metadata.create_all(engine)
 
@@ -24,6 +25,7 @@ app.add_middleware(
 )
 
 GITHUB_URL = re.compile(r"^https://github\.com/[\w.-]+/[\w.-]+?(\.git)?/?$")
+HIGH_RISK_THRESHOLD = 0.7
 
 
 class CreateAnalysis(BaseModel):
@@ -34,6 +36,31 @@ def iso(dt: datetime) -> str:
     if dt.tzinfo is None:  # SQLite returns naive datetimes
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.isoformat()
+
+
+def heuristic_score(value):
+    return {
+        "value": value,
+        "method": "heuristic",
+        "validated": False,
+        "evaluation_ref": None,
+        "confidence": None,
+        "confidence_kind": None,
+    }
+
+
+def _finished_analysis(db: Session, analysis_id: str) -> models.Analysis:
+    row = db.get(models.Analysis, analysis_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Analysis not found.")
+    if row.status not in ("completed", "partial"):
+        raise HTTPException(status_code=409, detail=f"Analysis is not finished (status: {row.status}).")
+    return row
+
+
+def _scored_files(db: Session, analysis_id: str):
+    rows = db.query(models.FileMetric).filter(models.FileMetric.analysis_id == analysis_id).all()
+    return rows, score_files(rows)
 
 
 @app.get("/api/health")
@@ -66,35 +93,9 @@ def get_analysis(analysis_id: str, db: Session = Depends(get_db)):
         "repo_url": row.repo_url,
         "progress": row.progress,
         "stage": row.stage,
-        "agents": [],  # real agents arrive later; empty is honest
+        "agents": [],  # per-agent live progress is not tracked; empty is honest
         "error": row.error,
     }
-HIGH_RISK_THRESHOLD = 0.7
-
-
-def heuristic_score(value):
-    return {
-        "value": value,
-        "method": "heuristic",
-        "validated": False,
-        "evaluation_ref": None,
-        "confidence": None,
-        "confidence_kind": None,
-    }
-
-
-def _finished_analysis(db: Session, analysis_id: str) -> models.Analysis:
-    row = db.get(models.Analysis, analysis_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Analysis not found.")
-    if row.status not in ("completed", "partial"):
-        raise HTTPException(status_code=409, detail=f"Analysis is not finished (status: {row.status}).")
-    return row
-
-
-def _scored_files(db: Session, analysis_id: str):
-    rows = db.query(models.FileMetric).filter(models.FileMetric.analysis_id == analysis_id).all()
-    return rows, score_files(rows)
 
 
 @app.get("/api/analyses/{analysis_id}/summary")
@@ -102,7 +103,6 @@ def get_summary(analysis_id: str, db: Session = Depends(get_db)):
     row = _finished_analysis(db, analysis_id)
     files, scores = _scored_files(db, analysis_id)
     avg = round(sum(scores) / len(scores), 4) if scores else None
-    contributors = len({a for f in files for a in [f.contributors]}) if files else None
     return {
         "analysis_id": row.id,
         "status": row.status,
@@ -152,3 +152,15 @@ def get_files(analysis_id: str, db: Session = Depends(get_db)):
     ]
     items.sort(key=lambda x: x["bug_risk"]["value"], reverse=True)
     return {"analysis_id": analysis_id, "data_source": "live", "total": len(items), "items": items}
+
+
+@app.get("/api/analyses/{analysis_id}/agents")
+def get_agents(analysis_id: str, db: Session = Depends(get_db)):
+    _finished_analysis(db, analysis_id)
+    files, scores = _scored_files(db, analysis_id)
+    return {
+        "analysis_id": analysis_id,
+        "data_source": "live",
+        "generated_at": iso(datetime.now(timezone.utc)),
+        **run_agents(files, scores),
+    }
