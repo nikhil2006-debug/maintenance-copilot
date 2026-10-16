@@ -5,4 +5,14 @@ CORS_ORIGINS = [
     for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
     if o.strip()
 ]
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./maintenance_copilot.db")
+def _normalize_db_url(url: str) -> str:
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        url = "postgresql+psycopg://" + url[len("postgresql://"):]
+    return url
+
+
+DATABASE_URL = _normalize_db_url(
+    os.getenv("DATABASE_URL", "sqlite:///./maintenance_copilot.db")
+)
