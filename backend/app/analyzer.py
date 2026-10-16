@@ -10,7 +10,20 @@ from git import Repo
 MAX_COMMITS = 1000
 BUGFIX_RE = re.compile(r"\b(fix(es|ed)?|bug|patch|defect|hotfix|resolve[sd]?)\b", re.IGNORECASE)
 SKIP_SUFFIXES = (".lock", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".pdf", ".zip", ".min.js")
+# Non-source files: docs, changelogs, config. Excluded so the ranking is about code.
+EXCLUDE_SUFFIXES = (".rst", ".md", ".txt", ".toml", ".cfg", ".ini", ".yml", ".yaml", ".json")
+EXCLUDE_DIRS = ("docs/", "doc/", ".github/")
+EXCLUDE_NAMES = ("license", "authors", "changes", "changelog", "news", "manifest.in")
 
+
+def is_non_source(path: str) -> bool:
+    p = path.lower()
+    name = p.rsplit("/", 1)[-1]
+    return (
+        p.endswith(EXCLUDE_SUFFIXES)
+        or p.startswith(EXCLUDE_DIRS)
+        or name in EXCLUDE_NAMES
+    )
 
 def clone_repo(url: str) -> tuple[Repo, str]:
     tmp = tempfile.mkdtemp(prefix="mc_")
@@ -53,7 +66,7 @@ def extract_features(repo: Repo):
             if len(cols) != 3:
                 continue
             ins, dele, path = cols
-            if "=>" in path or path.lower().endswith(SKIP_SUFFIXES):
+            if "=>" in path or path.lower().endswith(SKIP_SUFFIXES) or is_non_source(path):
                 continue
             s = stats[path]
             s["commits"] += 1
