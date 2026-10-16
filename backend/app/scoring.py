@@ -5,7 +5,7 @@ WEIGHTS = {"bugfix": 0.40, "churn": 0.25, "commits": 0.20, "contributors": 0.15}
 LABEL_METHOD = (
     "Keyword heuristic: a commit counts as a bug fix if its first message line matches "
     "fix/bug/patch/defect/hotfix/resolve. This is not SZZ. Up to the last 1000 commits of the default branch; "
-    "renamed files and binary/lock files are skipped."
+    "renamed files, binary/lock files, and docs/changelog/config files are skipped."
 )
 PREDICTION_TARGET = (
     "Heuristic relative bug-proneness of a file (rank-based, 0..1). Not a validated prediction."
