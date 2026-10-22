@@ -34,7 +34,15 @@ export default function NewAnalysis() {
     },
   })
 
+  // Busy from the moment the request is sent until the job reaches a final state.
+  const jobRunning =
+    activeId !== null &&
+    !status.isError &&
+    (!status.data || status.data.status === 'queued' || status.data.status === 'running')
+  const busy = create.isPending || jobRunning
+
   function submit() {
+    if (busy) return
     const trimmed = url.trim()
     if (!GITHUB_URL.test(trimmed)) {
       setFormError('Enter a public GitHub repository URL, e.g. https://github.com/owner/repo')
@@ -63,15 +71,16 @@ export default function NewAnalysis() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
+            disabled={busy}
             placeholder="https://github.com/owner/repo"
-            className="min-w-0 flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+            className="min-w-0 flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none disabled:opacity-60"
           />
           <button
             onClick={submit}
-            disabled={create.isPending}
+            disabled={busy}
             className="rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 disabled:opacity-50"
           >
-            {create.isPending ? 'Starting…' : 'Analyze'}
+            {create.isPending ? 'Starting…' : jobRunning ? 'Analyzing…' : 'Analyze'}
           </button>
         </div>
         {formError && <p className="mt-2 text-sm text-red-300">{formError}</p>}
