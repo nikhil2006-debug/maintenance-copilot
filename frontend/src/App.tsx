@@ -2,6 +2,8 @@ import { Route, Routes } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import AgentPipeline from './pages/AgentPipeline'
 import Architecture from './pages/Architecture'
+import DataSources from './pages/DataSources'
+import Evaluation from './pages/Evaluation'
 import FileRisk from './pages/FileRisk'
 import NewAnalysis from './pages/NewAnalysis'
 import Overview from './pages/Overview'
@@ -11,8 +13,6 @@ import TechnicalDebt from './pages/TechnicalDebt'
 
 const placeholders = [
   { path: 'evolution', title: 'Bug evolution', phase: 'Not built' },
-  { path: 'data-sources', title: 'Data sources', phase: 'Not built' },
-  { path: 'evaluation', title: 'Evaluation', phase: 'Not built' },
   { path: 'history', title: 'History & feedback', phase: 'Not built' },
 ]
 
@@ -26,6 +26,8 @@ export default function App() {
         <Route path="debt" element={<TechnicalDebt />} />
         <Route path="agents" element={<AgentPipeline />} />
         <Route path="recommendations" element={<Recommendations />} />
+        <Route path="data-sources" element={<DataSources />} />
+        <Route path="evaluation" element={<Evaluation />} />
         <Route path="architecture" element={<Architecture />} />
         {placeholders.map((p) => (
           <Route key={p.path} path={p.path} element={<PlaceholderPage title={p.title} phase={p.phase} />} />
