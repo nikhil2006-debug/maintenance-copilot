@@ -3,9 +3,12 @@ import { request } from './client'
 import { getMockStatus, mockSummary, startMockRun } from '../mocks/fixtures'
 import type {
   AgentsResponse,
+  AnalysisListResponse,
   AnalysisStatusResponse,
   AnalysisSummary,
   CreateAnalysisResponse,
+  FeedbackResponse,
+  FeedbackVerdict,
   FilesResponse,
 } from './types'
 
@@ -74,4 +77,26 @@ export function getAgents(id: string): Promise<AgentsResponse> {
     })
   }
   return request<AgentsResponse>(`/api/analyses/${id}/agents`)
+}
+
+export function listAnalyses(): Promise<AnalysisListResponse> {
+  if (USE_MOCKS) return mockDelay({ items: [] })
+  return request<AnalysisListResponse>('/api/analyses')
+}
+
+export function getFeedback(id: string): Promise<FeedbackResponse> {
+  if (USE_MOCKS) return mockDelay({ analysis_id: id, items: [] })
+  return request<FeedbackResponse>(`/api/analyses/${id}/feedback`)
+}
+
+export function sendFeedback(
+  id: string,
+  file: string,
+  verdict: FeedbackVerdict,
+): Promise<{ file: string; verdict: FeedbackVerdict }> {
+  if (USE_MOCKS) return mockDelay({ file, verdict }, 150)
+  return request<{ file: string; verdict: FeedbackVerdict }>(`/api/analyses/${id}/feedback`, {
+    method: 'POST',
+    body: JSON.stringify({ file, verdict }),
+  })
 }

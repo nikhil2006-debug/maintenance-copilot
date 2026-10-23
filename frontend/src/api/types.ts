@@ -117,3 +117,27 @@ export interface AgentsResponse {
   orchestrator: { conflicts: Conflict[]; agent_errors: { agent: string; message: string }[] }
   recommendations: Recommendation[]
 }
+export interface AnalysisListItem {
+  analysis_id: string
+  repo_url: string
+  status: AnalysisStatus
+  created_at: string
+  total_commits: number | null
+  files: number | null
+}
+
+export interface AnalysisListResponse {
+  items: AnalysisListItem[]
+}
+
+export type FeedbackVerdict = 'useful' | 'not_useful'
+
+export interface FeedbackItem {
+  file: string
+  verdict: FeedbackVerdict
+}
+
+export interface FeedbackResponse {
+  analysis_id: string
+  items: FeedbackItem[]
+}
