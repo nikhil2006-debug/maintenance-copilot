@@ -192,7 +192,7 @@ def get_agents(analysis_id: str, db: Session = Depends(get_db)):
         "analysis_id": analysis_id,
         "data_source": "live",
         "generated_at": iso(datetime.now(timezone.utc)),
-        **run_agents(files, scores),
+        **run_agents(files, scores, _monthly(db, analysis_id)),
     }
 
 
@@ -222,4 +222,29 @@ def get_feedback(analysis_id: str, db: Session = Depends(get_db)):
     return {
         "analysis_id": analysis_id,
         "items": [{"file": r.path, "verdict": r.verdict} for r in rows],
+    }
+
+
+def _monthly(db: Session, analysis_id: str) -> list[dict]:
+    rows = (
+        db.query(models.MonthlyActivity)
+        .filter(models.MonthlyActivity.analysis_id == analysis_id)
+        .order_by(models.MonthlyActivity.month)
+        .all()
+    )
+    return [{"month": r.month, "commits": r.commits, "bugfix_commits": r.bugfix_commits} for r in rows]
+
+
+@app.get("/api/analyses/{analysis_id}/evolution")
+def get_evolution(analysis_id: str, db: Session = Depends(get_db)):
+    _finished_analysis(db, analysis_id)
+    months = _monthly(db, analysis_id)
+    return {
+        "analysis_id": analysis_id,
+        "data_source": "live",
+        "months": [
+            {**m, "bugfix_share": round(m["bugfix_commits"] / m["commits"], 4) if m["commits"] else None}
+            for m in months
+        ],
+        "unavailable_reason": None if months else "monthly_data_not_collected_for_this_analysis",
     }

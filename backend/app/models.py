@@ -47,3 +47,15 @@ class Feedback(Base):
     path: Mapped[str] = mapped_column(String(1000))
     verdict: Mapped[str] = mapped_column(String(20))  # "useful" | "not_useful"
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+
+class MonthlyActivity(Base):
+    __tablename__ = "monthly_activity"
+    __table_args__ = (UniqueConstraint("analysis_id", "month", name="uq_monthly_analysis_month"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    analysis_id: Mapped[str] = mapped_column(ForeignKey("analyses.id"), index=True)
+    month: Mapped[str] = mapped_column(String(7))  # "YYYY-MM"
+    commits: Mapped[int] = mapped_column(Integer, default=0)  # commits touching source files
+    bugfix_commits: Mapped[int] = mapped_column(Integer, default=0)

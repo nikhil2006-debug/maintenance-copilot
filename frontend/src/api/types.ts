@@ -141,3 +141,17 @@ export interface FeedbackResponse {
   analysis_id: string
   items: FeedbackItem[]
 }
+
+export interface EvolutionMonth {
+  month: string
+  commits: number
+  bugfix_commits: number
+  bugfix_share: number | null
+}
+
+export interface EvolutionResponse {
+  analysis_id: string
+  data_source: DataSource
+  months: EvolutionMonth[]
+  unavailable_reason: string | null
+}

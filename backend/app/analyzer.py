@@ -10,6 +10,7 @@ from git import Repo
 MAX_COMMITS = 1000
 BUGFIX_RE = re.compile(r"\b(fix(es|ed)?|bug|patch|defect|hotfix|resolve[sd]?)\b", re.IGNORECASE)
 SKIP_SUFFIXES = (".lock", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".pdf", ".zip", ".min.js")
+
 # Non-source files: docs, changelogs, config. Excluded so the ranking is about code.
 EXCLUDE_SUFFIXES = (".rst", ".md", ".txt", ".toml", ".cfg", ".ini", ".yml", ".yaml", ".json")
 EXCLUDE_DIRS = ("docs/", "doc/", ".github/")
@@ -25,6 +26,7 @@ def is_non_source(path: str) -> bool:
         or name in EXCLUDE_NAMES
     )
 
+
 def clone_repo(url: str) -> tuple[Repo, str]:
     tmp = tempfile.mkdtemp(prefix="mc_")
     try:
@@ -39,7 +41,11 @@ def clone_repo(url: str) -> tuple[Repo, str]:
 
 
 def extract_features(repo: Repo):
-    """One `git log --numstat` call over up to MAX_COMMITS commits."""
+    """One `git log --numstat` call over up to MAX_COMMITS commits.
+
+    Returns (total_commits, per_file_stats, monthly_counts). Monthly counts only include
+    commits that touched at least one source file.
+    """
     out = subprocess.run(
         ["git", "-C", str(repo.working_dir), "log", f"--max-count={MAX_COMMITS}",
          "--numstat", "--pretty=format:%x1e%H%x1f%ae%x1f%ct%x1f%s"],
@@ -48,6 +54,7 @@ def extract_features(repo: Repo):
     ).stdout
 
     stats = defaultdict(lambda: {"commits": 0, "churn": 0, "authors": set(), "bugfix": 0, "last": None})
+    monthly = defaultdict(lambda: {"commits": 0, "bugfix": 0})
     total = 0
     for block in out.split("\x1e"):
         block = block.strip("\n")
@@ -61,6 +68,7 @@ def extract_features(repo: Repo):
         total += 1
         is_fix = bool(BUGFIX_RE.search(subject))
         when = datetime.fromtimestamp(int(ts), tz=timezone.utc)
+        touched_source = False
         for line in lines[1:]:
             cols = line.split("\t")
             if len(cols) != 3:
@@ -68,6 +76,7 @@ def extract_features(repo: Repo):
             ins, dele, path = cols
             if "=>" in path or path.lower().endswith(SKIP_SUFFIXES) or is_non_source(path):
                 continue
+            touched_source = True
             s = stats[path]
             s["commits"] += 1
             s["churn"] += (int(ins) if ins.isdigit() else 0) + (int(dele) if dele.isdigit() else 0)
@@ -75,4 +84,8 @@ def extract_features(repo: Repo):
             s["bugfix"] += 1 if is_fix else 0
             if s["last"] is None or when > s["last"]:
                 s["last"] = when
-    return total, stats
+        if touched_source:
+            m = monthly[when.strftime("%Y-%m")]
+            m["commits"] += 1
+            m["bugfix"] += 1 if is_fix else 0
+    return total, stats, monthly
