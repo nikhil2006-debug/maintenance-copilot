@@ -7,11 +7,11 @@ import type {
   AnalysisStatusResponse,
   AnalysisSummary,
   CreateAnalysisResponse,
+  EvolutionResponse,
   FeedbackResponse,
   FeedbackVerdict,
   FilesResponse,
 } from './types'
-
 const mockDelay = <T,>(data: T, ms = 400) =>
   new Promise<T>((resolve) => setTimeout(() => resolve(data), ms))
 
@@ -99,4 +99,16 @@ export function sendFeedback(
     method: 'POST',
     body: JSON.stringify({ file, verdict }),
   })
+}
+
+export function getEvolution(id: string): Promise<EvolutionResponse> {
+  if (USE_MOCKS) {
+    return mockDelay({
+      analysis_id: id,
+      data_source: 'mock' as const,
+      months: [],
+      unavailable_reason: 'mock_mode',
+    })
+  }
+  return request<EvolutionResponse>(`/api/analyses/${id}/evolution`)
 }

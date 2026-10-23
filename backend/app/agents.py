@@ -42,10 +42,51 @@ def technical_debt_agent(files):
     return findings[:15]
 
 
-def run_agents(files, scores):
+def bug_evolution_agent(monthly):
+    """Compares the bug-fix share of commits in the earlier vs later half of the analysed months."""
+    base = {"agent": "bug_evolution", "method": "rule_based"}
+    if not monthly:
+        return {**base, "status": "skipped", "findings": [],
+                "error": "Monthly commit counts were not collected for this analysis; re-run it."}
+    if len(monthly) < 6:
+        return {**base, "status": "skipped", "findings": [],
+                "error": f"Only {len(monthly)} months with source-file commits; at least 6 are needed for a comparison."}
+
+    half = len(monthly) // 2
+    early, late = monthly[:half], monthly[-half:]
+
+    def share(rows):
+        total = sum(r["commits"] for r in rows)
+        fixes = sum(r["bugfix_commits"] for r in rows)
+        return total, (fixes / total if total else None)
+
+    e_total, e_share = share(early)
+    l_total, l_share = share(late)
+    if e_share is None or l_share is None or e_total < 20 or l_total < 20:
+        return {**base, "status": "skipped", "findings": [],
+                "error": f"Too few commits per half (earlier {e_total}, later {l_total}); at least 20 each are needed."}
+
+    diff = l_share - e_share
+    trend = "rising" if diff >= 0.05 else "falling" if diff <= -0.05 else "flat"
+    finding = {
+        "file": "(repository-wide)",
+        "summary": (f"Bug-fix share of commits is {trend}: {e_share:.0%} in the earlier {half} months "
+                    f"vs {l_share:.0%} in the later {half} months."),
+        "evidence": {
+            "earlier_share": round(e_share, 3), "later_share": round(l_share, 3),
+            "earlier_commits": e_total, "later_commits": l_total, "months_per_half": half,
+            "rule": "later minus earlier share >= +0.05 rising, <= -0.05 falling; threshold untuned",
+        },
+    }
+    return {**base, "status": "completed", "findings": [finding],
+            "note": "Compares two halves of the analysed window using keyword-based bug-fix labels. Not a forecast."}
+
+
+def run_agents(files, scores, monthly=None):
     risk = {f.path: s for f, s in zip(files, scores)}
     bug = bug_analysis_agent(files, scores)
     debt = technical_debt_agent(files)
+    evolution = bug_evolution_agent(monthly or [])
 
     bug_files = {x["file"] for x in bug}
     debt_files = {x["file"] for x in debt}
@@ -75,8 +116,7 @@ def run_agents(files, scores):
     return {
         "agents": [
             agent("bug_analysis", bug),
-            {"agent": "bug_evolution", "status": "skipped", "method": "rule_based", "findings": [],
-             "error": "Per-commit history is not stored yet, so temporal evolution is not computed."},
+            evolution,
             agent("technical_debt", debt, note="Proxy indicator from churn and author spread; no complexity data."),
             agent("recommendation", recs),
             agent("orchestrator", [], note="Merges findings by file and records conflicts."),

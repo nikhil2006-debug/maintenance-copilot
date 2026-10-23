@@ -2,7 +2,7 @@ import shutil
 
 from .analyzer import clone_repo, extract_features
 from .db import SessionLocal
-from .models import Analysis, FileMetric
+from .models import Analysis, FileMetric, MonthlyActivity
 
 
 def _update(analysis_id: str, **fields) -> None:
@@ -29,7 +29,7 @@ def run_analysis(analysis_id: str) -> None:
         repo, tmp = clone_repo(url)
 
         _update(analysis_id, progress=0.4, stage="Reading commit history")
-        total, stats = extract_features(repo)
+        total, stats, monthly = extract_features(repo)
         if total == 0 or not stats:
             raise RuntimeError("Repository has no analyzable commit history.")
 
@@ -47,6 +47,15 @@ def run_analysis(analysis_id: str) -> None:
                     last_modified=s["last"],
                 )
                 for path, s in stats.items()
+            )
+            db.add_all(
+                MonthlyActivity(
+                    analysis_id=analysis_id,
+                    month=month,
+                    commits=v["commits"],
+                    bugfix_commits=v["bugfix"],
+                )
+                for month, v in monthly.items()
             )
             row = db.get(Analysis, analysis_id)
             row.commit_sha = repo.head.commit.hexsha
