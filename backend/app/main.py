@@ -1,9 +1,11 @@
 import re
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import models
@@ -30,6 +32,11 @@ HIGH_RISK_THRESHOLD = 0.7
 
 class CreateAnalysis(BaseModel):
     repo_url: str
+
+
+class FeedbackIn(BaseModel):
+    file: str = Field(max_length=1000)
+    verdict: Literal["useful", "not_useful"]
 
 
 def iso(dt: datetime) -> str:
@@ -66,6 +73,29 @@ def _scored_files(db: Session, analysis_id: str):
 @app.get("/api/health")
 def health():
     return {"status": "ok", "data_source": "live"}
+
+
+@app.get("/api/analyses")
+def list_analyses(db: Session = Depends(get_db)):
+    rows = db.query(models.Analysis).order_by(models.Analysis.created_at.desc()).limit(50).all()
+    counts = dict(
+        db.query(models.FileMetric.analysis_id, func.count(models.FileMetric.id))
+        .group_by(models.FileMetric.analysis_id)
+        .all()
+    )
+    return {
+        "items": [
+            {
+                "analysis_id": r.id,
+                "repo_url": r.repo_url,
+                "status": r.status,
+                "created_at": iso(r.created_at),
+                "total_commits": r.total_commits,
+                "files": counts.get(r.id, 0) if r.status in ("completed", "partial") else None,
+            }
+            for r in rows
+        ]
+    }
 
 
 @app.post("/api/analyses")
@@ -163,4 +193,33 @@ def get_agents(analysis_id: str, db: Session = Depends(get_db)):
         "data_source": "live",
         "generated_at": iso(datetime.now(timezone.utc)),
         **run_agents(files, scores),
+    }
+
+
+@app.post("/api/analyses/{analysis_id}/feedback")
+def post_feedback(analysis_id: str, body: FeedbackIn, db: Session = Depends(get_db)):
+    if db.get(models.Analysis, analysis_id) is None:
+        raise HTTPException(status_code=404, detail="Analysis not found.")
+    row = (
+        db.query(models.Feedback)
+        .filter(models.Feedback.analysis_id == analysis_id, models.Feedback.path == body.file)
+        .one_or_none()
+    )
+    if row is None:
+        db.add(models.Feedback(analysis_id=analysis_id, path=body.file, verdict=body.verdict))
+    else:
+        row.verdict = body.verdict
+        row.created_at = models.utcnow()
+    db.commit()
+    return {"file": body.file, "verdict": body.verdict}
+
+
+@app.get("/api/analyses/{analysis_id}/feedback")
+def get_feedback(analysis_id: str, db: Session = Depends(get_db)):
+    if db.get(models.Analysis, analysis_id) is None:
+        raise HTTPException(status_code=404, detail="Analysis not found.")
+    rows = db.query(models.Feedback).filter(models.Feedback.analysis_id == analysis_id).all()
+    return {
+        "analysis_id": analysis_id,
+        "items": [{"file": r.path, "verdict": r.verdict} for r in rows],
     }

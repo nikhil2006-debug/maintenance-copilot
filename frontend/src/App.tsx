@@ -10,10 +10,11 @@ import Overview from './pages/Overview'
 import PlaceholderPage from './pages/PlaceholderPage'
 import Recommendations from './pages/Recommendations'
 import TechnicalDebt from './pages/TechnicalDebt'
+import History from './pages/History'
 
 const placeholders = [
-  { path: 'evolution', title: 'Bug evolution', phase: 'Not built' },
-  { path: 'history', title: 'History & feedback', phase: 'Not built' },
+  { path: 'evolution', title: 'Bug evolution', phase: 'Not built' }
+  
 ]
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="data-sources" element={<DataSources />} />
         <Route path="evaluation" element={<Evaluation />} />
         <Route path="architecture" element={<Architecture />} />
+        <Route path="history" element={<History />} />
         {placeholders.map((p) => (
           <Route key={p.path} path={p.path} element={<PlaceholderPage title={p.title} phase={p.phase} />} />
         ))}

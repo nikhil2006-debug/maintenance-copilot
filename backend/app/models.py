@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
@@ -36,3 +36,14 @@ class FileMetric(Base):
     contributors: Mapped[int] = mapped_column(Integer, default=0)
     bugfix_commits: Mapped[int] = mapped_column(Integer, default=0)
     last_modified: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+    __table_args__ = (UniqueConstraint("analysis_id", "path", name="uq_feedback_analysis_path"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    analysis_id: Mapped[str] = mapped_column(ForeignKey("analyses.id"), index=True)
+    path: Mapped[str] = mapped_column(String(1000))
+    verdict: Mapped[str] = mapped_column(String(20))  # "useful" | "not_useful"
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
